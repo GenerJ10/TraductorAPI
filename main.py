@@ -1,4 +1,4 @@
-
+ï»¿
 import os
 import time
 import threading
@@ -29,7 +29,7 @@ bloqueo_modelo = threading.Lock()
 # async def lifespan(app: FastAPI):
 #     global tokenizador, modelo
 
-#     logger.info("Cargando modelo de traducción: %s", MODELO_ID)
+#     logger.info("Cargando modelo de traducciÃ³n: %s", MODELO_ID)
 
 #     torch.set_num_threads(2)
 
@@ -51,25 +51,25 @@ async def lifespan(app: FastAPI):
 
     torch.set_num_threads(2)
 
-    # MODELO 1: INGLÉS -> ESPAÑOL
-    logger.info("Cargando modelo inglés-español: %s", MODELO_EN_ES)
+    # MODELO 1: INGLÃ‰S -> ESPAÃ‘OL
+    logger.info("Cargando modelo ingles-espaÃ±ol: %s", MODELO_EN_ES)
 
     tokenizador = MarianTokenizer.from_pretrained(MODELO_EN_ES)
     modelo = MarianMTModel.from_pretrained(MODELO_EN_ES)
     modelo.eval()
 
-    logger.info("Modelo inglés-español cargado.")
+    logger.info("Modelo ingles-espaÃ±ol cargado.")
 
-    # MODELO 2: ESPAÑOL -> MANDARÍN
-    logger.info("Cargando modelo español-mandarín: %s", MODELO_ES_ZH)
+    # MODELO 2: ESPAÃ‘OL -> MANDARÃN
+    logger.info("Cargando modelo espanol-mandarin: %s", MODELO_ES_ZH)
 
     tokenizador_es_zh = MarianTokenizer.from_pretrained(MODELO_ES_ZH)
     modelo_es_zh = MarianMTModel.from_pretrained(MODELO_ES_ZH)
     modelo_es_zh.eval()
 
-    logger.info("Modelo español-mandarín cargado.")
+    logger.info("Modelo espanol-mandarin cargado.")
 
-    logger.info("Todos los modelos están listos.")
+    logger.info("Todos los modelos estan listos.")
 
     yield
 
@@ -78,7 +78,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="Traductor inglés a español",
+    title="Traductor ingles a espanol",
     version="1.0.0",
     lifespan=lifespan,
 )
@@ -95,7 +95,7 @@ class SolicitudTraduccion(BaseModel):
 # def inicio():
 #     return {
 #         "estado": "activo",
-#         "servicio": "Traductor inglés a español",
+#         "servicio": "Traductor inglÃ©s a espaÃ±ol",
 #         "modelo": MODELO_ID,
 #     }
 
@@ -145,7 +145,7 @@ def salud():
 #     if modelo is None or tokenizador is None:
 #         raise HTTPException(
 #             status_code=503,
-#             detail="El modelo todavía no está listo.",
+#             detail="El modelo todavÃ­a no estÃ¡ listo.",
 #         )
 
 #     ingles = solicitud.texto.strip()
@@ -153,7 +153,7 @@ def salud():
 #     if not ingles:
 #         raise HTTPException(
 #             status_code=400,
-#             detail="El texto está vacío.",
+#             detail="El texto estÃ¡ vacÃ­o.",
 #         )
 
 #     inicio = time.perf_counter()
@@ -182,7 +182,7 @@ def salud():
 #         duracion = round(time.perf_counter() - inicio, 4)
 
 #         logger.info(
-#             "Traducción completada en %.4f segundos",
+#             "TraducciÃ³n completada en %.4f segundos",
 #             duracion,
 #         )
 
@@ -193,7 +193,7 @@ def salud():
 #         }
 
 #     except Exception:
-#         logger.exception("Error durante la traducción.")
+#         logger.exception("Error durante la traducciÃ³n.")
 #         raise HTTPException(
 #             status_code=500,
 #             detail="No se pudo traducir el texto.",
@@ -211,7 +211,7 @@ def traducir(solicitud: SolicitudTraduccion):
     if not texto:
         raise HTTPException(
             status_code=400,
-            detail="El texto está vacío."
+            detail="El texto esta vacio."
         )
 
     origen = solicitud.idioma_origen.lower().strip()
@@ -224,7 +224,7 @@ def traducir(solicitud: SolicitudTraduccion):
         with bloqueo_modelo:
 
             # ==========================================
-            # MODELO 1: INGLÉS -> ESPAÑOL
+            # MODELO 1: INGLÃ‰S -> ESPAÃ‘OL
             # ==========================================
 
             if origen == "en" and destino == "es":
@@ -232,7 +232,7 @@ def traducir(solicitud: SolicitudTraduccion):
                 if modelo is None or tokenizador is None:
                     raise HTTPException(
                         status_code=503,
-                        detail="Modelo inglés-español no disponible."
+                        detail="Modelo ingles-espanol no disponible."
                     )
 
                 entradas = tokenizador(
@@ -259,7 +259,7 @@ def traducir(solicitud: SolicitudTraduccion):
                 )
 
                 logger.info(
-                    "Inglés-español completado en %.4f segundos",
+                    "Ingles-espanol completado en %.4f segundos",
                     duracion
                 )
 
@@ -270,7 +270,7 @@ def traducir(solicitud: SolicitudTraduccion):
                 }
 
             # ==========================================
-            # MODELO 2: ESPAÑOL -> MANDARÍN
+            # MODELO 2: ESPAÃ‘OL -> MANDARÃN
             # ==========================================
 
             elif origen == "es" and destino in ("zh-cn", "zh"):
@@ -278,7 +278,7 @@ def traducir(solicitud: SolicitudTraduccion):
                 if modelo_es_zh is None or tokenizador_es_zh is None:
                     raise HTTPException(
                         status_code=503,
-                        detail="Modelo español-mandarín no disponible."
+                        detail="Modelo espanol-mandarin no disponible."
                     )
 
                 texto_modelo = ">>cmn_Hans<< " + texto
@@ -307,7 +307,7 @@ def traducir(solicitud: SolicitudTraduccion):
                 )
 
                 logger.info(
-                    "Español-mandarín completado en %.4f segundos",
+                    "Espanol-mandarin completado en %.4f segundos",
                     duracion
                 )
 
@@ -321,7 +321,7 @@ def traducir(solicitud: SolicitudTraduccion):
 
                 raise HTTPException(
                     status_code=400,
-                    detail=f"Combinación de idiomas no soportada: {origen}-{destino}"
+                    detail=f"Combinacion de idiomas no soportada: {origen}-{destino}"
                 )
 
     except HTTPException:
@@ -329,7 +329,7 @@ def traducir(solicitud: SolicitudTraduccion):
 
     except Exception:
 
-        logger.exception("Error durante la traducción.")
+        logger.exception("Error durante la traduccion.")
 
         raise HTTPException(
             status_code=500,
