@@ -1,47 +1,56 @@
 
 
-import os
 import time
 import threading
 import logging
 from contextlib import asynccontextmanager
 
-import torch
+import ctranslate2
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
-from transformers import MarianMTModel, MarianTokenizer
+from transformers import MarianTokenizer
+from huggingface_hub import snapshot_download
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("TraductorAPI")
 
-# MODELO_EN_ES = "Helsinki-NLP/opus-mt_tiny_eng-spa"
-# MODELO_ES_ZH = "Helsinki-NLP/opus-tatoeba-es-zh"
-
 MODELO_ID = "Helsinki-NLP/opus-tatoeba-es-zh"
+MODELO_CT2 = "GENERJOSE10/modelo-es-zh-int8"
 
 tokenizador = None
-modelo = None
+traductor = None
 bloqueo_modelo = threading.Lock()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global tokenizador, modelo
+    global tokenizador, traductor
 
-    logger.info("Cargando modelo de traducción: %s", MODELO_ID)
-
-    torch.set_num_threads(2)
+    logger.info("Cargando tokenizador español-mandarín...")
 
     tokenizador = MarianTokenizer.from_pretrained(MODELO_ID)
-    modelo = MarianMTModel.from_pretrained(MODELO_ID)
-    modelo.eval()
 
-    logger.info("Modelo cargado y listo para traducir.")
+    logger.info("Descargando modelo CTranslate2 INT8...")
+
+    ruta_modelo = snapshot_download(
+        repo_id=MODELO_CT2
+    )
+
+    logger.info("Cargando modelo INT8...")
+
+    traductor = ctranslate2.Translator(
+        ruta_modelo,
+        device="cpu",
+        compute_type="int8",
+        inter_threads=1,
+        intra_threads=2
+    )
+
+    logger.info("Modelo español-mandarín INT8 listo.")
 
     yield
 
     logger.info("API finalizando.")
-
 
 
 app = FastAPI(
@@ -53,30 +62,29 @@ app = FastAPI(
 
 class SolicitudTraduccion(BaseModel):
     texto: str = Field(min_length=1, max_length=1000)
-    
 
 
 @app.get("/")
 def inicio():
     return {
         "estado": "activo",
-        "servicio": "Traductor inglés a español",
+        "servicio": "Traductor español a mandarín INT8",
         "modelo": MODELO_ID,
+        "modelo_ct2": MODELO_CT2,
     }
 
 
 @app.get("/salud")
 def salud():
     return {
-        "estado": "listo" if modelo is not None else "cargando"
+        "estado": "listo" if traductor is not None else "cargando"
     }
-
 
 
 @app.post("/traducir")
 def traducir(solicitud: SolicitudTraduccion):
 
-    if modelo is None or tokenizador is None:
+    if traductor is None or tokenizador is None:
         raise HTTPException(
             status_code=503,
             detail="El modelo todavía no está listo.",
@@ -97,29 +105,34 @@ def traducir(solicitud: SolicitudTraduccion):
 
             texto_modelo = ">>cmn_Hans<< " + espanol
 
-            entradas = tokenizador(
+            ids = tokenizador.encode(
                 texto_modelo,
-                return_tensors="pt",
-                truncation=True,
-                max_length=256,
+                add_special_tokens=True
             )
 
-            with torch.inference_mode():
-                resultado = modelo.generate(
-                    **entradas,
-                    max_new_tokens=128,
-                    num_beams=1,
-                )
+            tokens = tokenizador.convert_ids_to_tokens(ids)
+
+            resultado = traductor.translate_batch(
+                [tokens],
+                beam_size=1,
+                max_decoding_length=128
+            )
+
+            tokens_chinos = resultado[0].hypotheses[0]
+
+            ids_chinos = tokenizador.convert_tokens_to_ids(
+                tokens_chinos
+            )
 
             chino = tokenizador.decode(
-                resultado[0],
-                skip_special_tokens=True,
+                ids_chinos,
+                skip_special_tokens=True
             ).strip()
 
         duracion = round(time.perf_counter() - inicio, 4)
 
         logger.info(
-            "Traducción español-mandarín completada en %.4f segundos",
+            "Traducción INT8 español-mandarín completada en %.4f segundos",
             duracion,
         )
 
